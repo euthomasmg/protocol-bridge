@@ -7,6 +7,7 @@ Script em PowerShell para alterar o plano de fundo da área de trabalho do Windo
 ## 📁 Arquivos Inclusos
 
 - **`WallShift.ps1`**: Script que baixa/carrega a imagem, atualiza o registro e aciona a API do Windows.
+- **`Install-KiroTheme.ps1`**: Script que baixa e instala automaticamente o visual completo do **Kiro IDE** (temas + ícones) no Antigravity IDE / VS Code.
 - **`Windows Dark 4k HD.jpg`**: Papel de parede estilo Dark Minimal (Opção 1).
 - **`Windows Dark Logo 4k HD.jpg`**: Papel de parede estilo Dark Windows Logo (Opção 2).
 
@@ -63,3 +64,23 @@ powershell -ExecutionPolicy Bypass -File ".\WallShift.ps1" -image "https://image
 ---
 
 > **Dica:** O parâmetro `-ExecutionPolicy Bypass` evita qualquer restrição de política de execução do PowerShell no Windows.
+
+---
+
+## 🎨 Instalar o Visual do Kiro IDE em Outro Computador
+
+Para aplicar automaticamente o tema **`Kiro Dark`** + **`Neo Kiro Theme`** + **`Material Icon Theme`** na IDE em qualquer outro PC Windows:
+
+### Executando da raiz do projeto (`protocol-bridge`):
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1"
+```
+
+### Opções extras:
+```powershell
+# Instalar tanto no Antigravity IDE quanto no VS Code:
+powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1" -IncludeVSCode
+
+# Usar a variante Neo Kiro Dark com os ícones de interface do Kiro:
+powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1" -Theme "Neo Kiro Dark" -NeoIcons
+```
