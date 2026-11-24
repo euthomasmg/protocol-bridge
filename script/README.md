@@ -69,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File ".\WallShift.ps1" -image "https://image
 
 ## 🎨 Instalar o Visual do Kiro IDE em Outro Computador
 
-Para aplicar automaticamente o tema **`Kiro Dark`** + **`Neo Kiro Theme`** + **`Material Icon Theme`** na IDE em qualquer outro PC Windows:
+Para aplicar automaticamente o tema **`Kiro Dark`** (com as 212 cores exatas do Kiro original) + **`kiricons`** + **`Material Icon Theme`** na IDE em qualquer outro PC Windows:
 
 ### Executando da raiz do projeto (`protocol-bridge`):
 ```powershell
@@ -81,6 +81,6 @@ powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1"
 # Instalar tanto no Antigravity IDE quanto no VS Code:
 powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1" -IncludeVSCode
 
-# Usar a variante Neo Kiro Dark com os ícones de interface do Kiro:
-powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1" -Theme "Neo Kiro Dark" -NeoIcons
+# Manter os ícones padrão da barra lateral (sem kiricons):
+powershell -ExecutionPolicy Bypass -File ".\script\Install-KiroTheme.ps1" -KeepDefaultIcons
 ```

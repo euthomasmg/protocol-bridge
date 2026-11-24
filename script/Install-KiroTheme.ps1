@@ -5,7 +5,7 @@ param (
     [ValidateSet("Kiro Dark", "Kiro Light", "Neo Kiro Dark", "Neo Kiro Light")]
     [string]$Theme = "Kiro Dark",
     [switch]$IncludeVSCode,
-    [switch]$NeoIcons,
+    [switch]$KeepDefaultIcons,
     [switch]$Force,
     [switch]$Help,
     [switch]$h
@@ -17,19 +17,19 @@ function Show-Help {
     Write-Output "    Kiro Theme Installer - AJUDA"
     Write-Output "=========================================="
     Write-Output ""
-    Write-Output "Instala automaticamente os temas e icones do Kiro IDE no Antigravity IDE"
-    Write-Output "(e opcionalmente no VS Code) e aplica a configuracao no settings.json."
+    Write-Output "Instala automaticamente os temas, icones (kiricons + Material) e ajustes"
+    Write-Output "exatos de cores do Kiro IDE no Antigravity IDE (e opcionalmente no VS Code)."
     Write-Output ""
     Write-Output "Uso:"
     Write-Output "    powershell -ExecutionPolicy Bypass -File .\Install-KiroTheme.ps1 [opcoes]"
     Write-Output ""
     Write-Output "Opcoes:"
-    Write-Output "    -Theme <nome>     Tema para ativar (padrao: 'Kiro Dark')."
-    Write-Output "                      Valores: 'Kiro Dark', 'Kiro Light', 'Neo Kiro Dark', 'Neo Kiro Light'"
-    Write-Output "    -IncludeVSCode    Tambem instala e aplica no Visual Studio Code."
-    Write-Output "    -NeoIcons         Ativa tambem os icones de interface 'Neo Kiro Icons' (kiricons)."
-    Write-Output "    -Force            Reinstala as extensoes mesmo se ja estiverem instaladas."
-    Write-Output "    -Help, -h         Mostra esta mensagem de ajuda."
+    Write-Output "    -Theme <nome>        Tema para ativar (padrao: 'Kiro Dark')."
+    Write-Output "                         Valores: 'Kiro Dark', 'Kiro Light', 'Neo Kiro Dark', 'Neo Kiro Light'"
+    Write-Output "    -IncludeVSCode       Tambem instala e aplica no Visual Studio Code."
+    Write-Output "    -KeepDefaultIcons    Nao altera os icones da barra lateral para 'kiricons'."
+    Write-Output "    -Force               Reinstala as extensoes mesmo se ja estiverem instaladas."
+    Write-Output "    -Help, -h            Mostra esta mensagem de ajuda."
     Write-Output ""
     exit 0
 }
@@ -128,6 +128,83 @@ function Set-JsoncSetting {
     }
 
     [System.IO.File]::WriteAllText($SettingsPath, $updated, $utf8NoBom)
+}
+
+function Update-IdeSettings {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$SettingsPath,
+        [Parameter(Mandatory = $true)]
+        [string]$ThemeName,
+        [switch]$SkipKiroIcons
+    )
+
+    $dir = Split-Path -Parent $SettingsPath
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $kiroColors = [ordered]@{
+        "editor.selectionBackground"       = "#c099ff40"
+        "tree.indentGuidesStroke"          = "#938f9b80"
+        "tree.inactiveIndentGuidesStroke"  = "#938f9b40"
+        "panel.border"                     = "#00000000"
+        "terminal.border"                  = "#4a464f"
+    }
+
+    $raw = if (Test-Path $SettingsPath) {
+        [System.IO.File]::ReadAllText($SettingsPath, [System.Text.Encoding]::UTF8)
+    } else {
+        "{}"
+    }
+    if ([string]::IsNullOrWhiteSpace($raw)) { $raw = "{}" }
+
+    try {
+        $obj = $raw | ConvertFrom-Json -ErrorAction Stop
+        if (-not $obj) { $obj = New-Object PSCustomObject }
+
+        $obj | Add-Member -NotePropertyName "workbench.colorTheme" -NotePropertyValue $ThemeName -Force
+        $obj | Add-Member -NotePropertyName "workbench.iconTheme" -NotePropertyValue "material-icon-theme" -Force
+        if (-not $SkipKiroIcons) {
+            $obj | Add-Member -NotePropertyName "workbench.productIconTheme" -NotePropertyValue "kiricons" -Force
+        }
+
+        $colorCust = $obj."workbench.colorCustomizations"
+        if (-not $colorCust) {
+            $colorCust = New-Object PSCustomObject
+        }
+        $colorCust | Add-Member -NotePropertyName "[Kiro Dark]" -NotePropertyValue ([PSCustomObject]$kiroColors) -Force
+        $obj | Add-Member -NotePropertyName "workbench.colorCustomizations" -NotePropertyValue $colorCust -Force
+
+        $formatted = ($obj | ConvertTo-Json -Depth 10) + "`r`n"
+        [System.IO.File]::WriteAllText($SettingsPath, $formatted, $utf8NoBom)
+    } catch {
+        # Fallback caso settings.json contenha comentarios '//' (JSONC)
+        Set-JsoncSetting -SettingsPath $SettingsPath -Key "workbench.iconTheme" -Value "material-icon-theme"
+        if (-not $SkipKiroIcons) {
+            Set-JsoncSetting -SettingsPath $SettingsPath -Key "workbench.productIconTheme" -Value "kiricons"
+        }
+        Set-JsoncSetting -SettingsPath $SettingsPath -Key "workbench.colorTheme" -Value $ThemeName
+
+        $current = [System.IO.File]::ReadAllText($SettingsPath, [System.Text.Encoding]::UTF8)
+        if ($current -notmatch '"workbench\.colorCustomizations"') {
+            $block = @"
+    "workbench.colorCustomizations": {
+        "[Kiro Dark]": {
+            "editor.selectionBackground": "#c099ff40",
+            "tree.indentGuidesStroke": "#938f9b80",
+            "tree.inactiveIndentGuidesStroke": "#938f9b40",
+            "panel.border": "#00000000",
+            "terminal.border": "#4a464f"
+        }
+    },
+"@
+            $openBracePattern = "^(\s*(?://[^\r\n]*\r?\n|\s)*)\{"
+            $updated = [regex]::Replace($current, $openBracePattern, "`$1{`r`n$block", 1)
+            [System.IO.File]::WriteAllText($SettingsPath, $updated, $utf8NoBom)
+        }
+    }
 }
 
 function Find-Targets {
@@ -231,12 +308,8 @@ foreach ($target in $targets) {
         }
     }
 
-    Write-Host "   [..] Aplicando tema '$Theme' em settings.json..." -ForegroundColor Yellow
-    Set-JsoncSetting -SettingsPath $target.SettingsPath -Key "workbench.iconTheme" -Value "material-icon-theme"
-    Set-JsoncSetting -SettingsPath $target.SettingsPath -Key "workbench.colorTheme" -Value $Theme
-    if ($NeoIcons) {
-        Set-JsoncSetting -SettingsPath $target.SettingsPath -Key "workbench.productIconTheme" -Value "kiricons"
-    }
+    Write-Host "   [..] Aplicando tema '$Theme', icones e cores exatas do Kiro em settings.json..." -ForegroundColor Yellow
+    Update-IdeSettings -SettingsPath $target.SettingsPath -ThemeName $Theme -SkipKiroIcons:$KeepDefaultIcons
     Write-Host "   [OK] Configuracoes salvas em: $($target.SettingsPath)" -ForegroundColor Green
 }
 
